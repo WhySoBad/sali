@@ -1,0 +1,17 @@
+[package]
+name = "sali"
+version = "0.1.0"
+edition = "2021"
+description = "A customizable greetd frontend using GTK"
+
+[dependencies]
+greetd_ipc = { git = "https://github.com/kennylevinsen/greetd", features = ["sync-codec"] }
+gtk = { version = "0.5.4", package = "gtk4" }
+serde_yaml = "0.9.34"
+serde = { version = "1.0.152", features = ["derive"] }
+rsass = "0.26.0"
+chrono = "0.4.23"
+log = "0.4.22"
+env_logger = "0.11.5"
+dirs = "5.0.1"
+clap = { version = "4.5.16", features = ["derive"] }
