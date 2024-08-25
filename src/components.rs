@@ -1,3 +1,4 @@
+use gtk4 as gtk;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]

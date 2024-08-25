@@ -76,9 +76,8 @@ impl Default for Config {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(untagged)]
 pub enum MonitorBackground {
-    /// Hex value of a color
-    Hex(String),
     /// Rgb value of a color
     Rgb(u8, u8, u8),
     /// Path to the background image
@@ -90,7 +89,7 @@ pub struct Monitor {
     /// Hardware output of the monitor (e.g. DP-1)
     pub output: String,
     /// Path to the background image of the monitor
-    pub background: MonitorBackground
+    pub background: Option<MonitorBackground>
 }
 
 #[derive(Deserialize, Debug)]
