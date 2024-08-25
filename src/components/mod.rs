@@ -1,7 +1,9 @@
 use gtk4 as gtk;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+pub mod build;
+
+#[derive(Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
 pub enum Component {
     /// Password form field component
@@ -9,7 +11,7 @@ pub enum Component {
     /// Username form field component
     Username(FieldComponent),
     /// Runner select form field component
-    Runner(FieldComponent),
+    Runner(ComponentWithClasses),
     /// Box component
     Box(BoxComponent),
     /// Label component displaying the current date time
@@ -18,26 +20,43 @@ pub enum Component {
     Label(LabelComponent)
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
+pub struct ComponentWithClasses {
+    /// Css classes which are applied to the component
+    pub classes: Vec<String>
+}
+
+impl Default for ComponentWithClasses {
+    fn default() -> Self {
+        Self {
+            classes: Vec::new()
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct DateTimeComponent {
     /// Css classes which are applied to the datetime label
     pub classes: Vec<String>,
     /// Format string used for the date
     ///
     /// Reference: https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    pub format: String
+    pub format: String,
+    /// Milliseconds after which the date time should be updated
+    pub interval: u32,
 }
 
 impl Default for DateTimeComponent {
     fn default() -> Self {
         Self {
             classes: vec![String::from("label"), String::from("datetime")],
-            format: String::from("%H:%M")
+            format: String::from("%H:%M"),
+            interval: 1000
         }
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct LabelComponent {
     /// Css classes which are applied to the label
     #[serde(default)]
@@ -55,7 +74,7 @@ impl Default for LabelComponent {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct FieldComponent {
     /// Css classes which are applied to the form field
@@ -73,7 +92,7 @@ impl Default for FieldComponent {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct BoxComponent {
     /// Css classes which are applied to the box
@@ -112,7 +131,7 @@ impl Default for BoxComponent {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub enum Align {
     Fill,
     Start,
@@ -133,7 +152,7 @@ impl From<Align> for gtk::Align {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub enum Orientation {
     Horizontal,
     Vertical

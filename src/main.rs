@@ -1,23 +1,25 @@
-use gtk4::{self as gtk, prelude::Cast};
-use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use components::build::{build_component_tree, Wrapped};
+use gtk4 as gtk;
+use login::handle_login;
+use std::process;
 use std::{fs, path::Path, sync::Arc};
 
 use clap::Parser;
 use cli::Cli;
 use config::Config;
-use gtk::{gdk::Display, prelude::{ApplicationExt, ApplicationExtManual, DisplayExt, GtkWindowExt, ListModelExt, MonitorExt, WidgetExt}, Application, ApplicationWindow, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
-use log::{error, warn};
+use gtk::gdk::{*, prelude::*};
+use gtk::{*, prelude::*};
+use gtk4_layer_shell::*;
+use log::{error, info, warn};
 use rsass::{compile_scss, output};
 
 mod config;
 mod cli;
 mod components;
+mod login;
 
 // TODO: Maybe cache the compiled styles using a checksum to prevent it from compiling in every run
 //       This could potentially mean a faster greeter 👀
-//
-// TODO: Create custom css strings containing the backgrounds for the monitors and add them to the application
-//       => DON'T USE SCSS FOR THIS!
 
 const APP_ID: &str = "ch.wysbd.sali";
 
@@ -41,7 +43,7 @@ fn main() {
           cloned_config.monitors.iter().for_each(|(name, mon)| {
               build_background_window(&cloned_app, mon);
               if *name == config.main_monitor {
-                  build_form_window(&cloned_app, mon);
+                  build_form_window(&cloned_app, mon, cloned_config.clone());
               }
           })
       });
@@ -89,17 +91,23 @@ fn load_stylesheets(config: &Arc<Config>) {
     )
 }
 
-fn build_background_window(app: &Application, monitor: &config::Monitor) {
+fn get_gdk_monitor(monitor: &config::Monitor) -> Option<gtk::gdk::Monitor> {
     let display = Display::default().expect("should have display");
-    let gdk_monitor = (0..display.monitors().n_items())
+    (0..display.monitors().n_items())
         .filter_map(|i| {
             let obj = display.monitors().item(i)?;
             obj.downcast::<gtk::gdk::Monitor>().ok()
         })
-        .find(|m| m.connector().unwrap_or_default() == monitor.output);
+        .find(|m| m.connector().unwrap_or_default() == monitor.output)
+}
 
-    let Some(gdk_monitor) = gdk_monitor else {
-        warn!("found no monitor with output {} on default display", monitor.output);
+fn build_background_window(app: &Application, monitor: &config::Monitor) {
+    let Some(background) = &monitor.background else {
+        return;
+    };
+
+    let Some(gdk_monitor) = get_gdk_monitor(monitor) else {
+        warn!("found no monitor with output {} on default display to build background window", monitor.output);
         return;
     };
 
@@ -120,38 +128,137 @@ fn build_background_window(app: &Application, monitor: &config::Monitor) {
     window.set_anchor(Edge::Left, true);
     window.set_exclusive_zone(-1);
 
-    if let Some(background) = &monitor.background {
-        let class_name = format!("{}-{}", APP_ID.replace(".", "-"), monitor.output);
-        let class_content = match background {
-            config::MonitorBackground::Rgb(r, g, b) => format!("background-color: rgb({r},{g},{b})"),
-            config::MonitorBackground::Image(path) => format!("background: url(\"file://{path}\")"),
-        };
-        provider.load_from_data(format!(r".{class_name} {{ {class_content}; background-size: cover; background-position: center; }}").as_str());
-        window.add_css_class(&class_name);
+    let display = Display::default().expect("should have display");
+    let class_name = format!("{}-{}", APP_ID.replace(".", "-"), monitor.output);
+    let class_content = match background {
+        config::MonitorBackground::Rgb(r, g, b) => format!("background-color: rgb({r},{g},{b})"),
+        config::MonitorBackground::Image(path) => format!("background: url(\"file://{path}\")"),
+    };
+    let css_str = format!(r".{class_name} {{ {class_content}; background-size: cover; background-position: center; }}");
+    provider.load_from_data(&css_str);
+    window.add_css_class(&class_name);
 
-        gtk::style_context_add_provider_for_display(
-            &display,
-            &provider,
-            STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-    }
+    gtk::style_context_add_provider_for_display(
+        &display,
+        &provider,
+        STYLE_PROVIDER_PRIORITY_APPLICATION
+    );
 
     window.present();
 }
 
-fn build_form_window(app: &Application, monitor: &config::Monitor) {
-    // FIXME: Find display for monitor (e.g. for DP-1)
+fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<Config>) {
+    let Some(gdk_monitor) = get_gdk_monitor(monitor) else {
+        warn!("found no monitor with output {} on default display to build form window", monitor.output);
+        return;
+    };
+
     let window = ApplicationWindow::builder()
         .application(app)
         .css_classes(vec![String::from("window")])
         .destroy_with_parent(true)
         .fullscreened(true)
+        .focusable(true)
+        .decorated(false)
         .build();
 
     window.init_layer_shell();
-    window.set_layer(Layer::Background);
+    window.set_layer(Layer::Top);
+    window.set_monitor(&gdk_monitor);
 
-    // TODO
+    let (mut username, mut password, mut runner) = (None, None, None);
 
-    window.present();
+    let tree = build_component_tree(
+        config.layout.clone(),
+        &mut username,
+        &mut password,
+        &mut runner,
+        &config
+    );
+
+    let Some(password) = password else {
+        error!("no password component is specified");
+        std::process::exit(1);
+    };
+
+    if runner.is_none() && config.default_runner.is_none() {
+        error!("neither a runner component nor a default runner is specified");
+        std::process::exit(1);
+    } else if username.is_none() && config.username.is_none() {
+        error!("neither a username component nor a default username is specified");
+        std::process::exit(1)
+    }
+
+    let (cu, cr, cp, cc) = (username.clone(), runner.clone(), password.clone(), config.clone());
+    let tmp = password.as_ref().borrow();
+    let entry = tmp.downcast_ref::<PasswordEntry>().expect("should be password entry");
+    entry.connect_activate(move |_| {
+        handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
+    });
+
+    let (cu, cr, cp, cc) = (username.clone(), runner.clone(), password.clone(), config.clone());
+    if let Some(usr) = username.clone() {
+        let tmp = usr.as_ref().borrow();
+        let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
+        entry.connect_activate(move |_| {
+            handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
+        });
+    }
+
+    match tree {
+        Some(child) => {
+            let widget = child.as_ref().borrow();
+            window.set_child(Some(widget.as_ref() as &Widget));
+            window.present();
+            info!("opened login form");
+        },
+        None => {
+            error!("component tree is empty which makes login impossible");
+            process::exit(1);
+        }
+    }
+}
+
+fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, runner: Option<Wrapped<Widget>>, config: Arc<Config>) {
+    let runner_opt = if let Some(runner) = runner {
+        let tmp = runner.as_ref().borrow();
+        let entry = tmp.downcast_ref::<DropDown>().expect("should be dropdown");
+        if let Some(selected) = entry.selected_item().and_downcast::<StringObject>() {
+            config.runners.values().find(|r| r.display_name == selected.string())
+        } else {
+            None
+        }
+    } else {
+        let name = config.default_runner.clone().expect("should have default runner");
+        config.runners.get(&name)
+    };
+
+    let Some(runner) = runner_opt else {
+        warn!("no runner found for submission");
+        return;
+    };
+
+    let tmp = password.as_ref().borrow();
+    let password_entry = tmp.downcast_ref::<PasswordEntry>().expect("should be password entry");
+    let password_str = password_entry.text();
+
+    if let Some(usr) = username {
+        let tmp = usr.as_ref().borrow();
+        let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
+        let username_str = entry.text();
+        if password_str.is_empty() || username_str.is_empty() {
+            password_entry.add_css_class("error");
+            entry.add_css_class("error");
+        }
+        match handle_login(username_str.to_string(), password_str.to_string(), runner) {
+            login::LoginResult::Failure(_) => todo!(),
+            login::LoginResult::Success => todo!(),
+        };
+    } else {
+        let username_str = config.username.clone().expect("should have default username");
+        match handle_login(username_str, password_str.to_string(), runner) {
+            login::LoginResult::Failure(_) => todo!(),
+            login::LoginResult::Success => todo!(),
+        };
+    }
 }

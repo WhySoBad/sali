@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::Path};
 use serde::Deserialize;
 use log::error;
 
-use crate::components::{BoxComponent, Component, FieldComponent};
+use crate::components::{BoxComponent, Component, ComponentWithClasses, FieldComponent};
 
 #[derive(Deserialize, Debug)]
 #[serde(default)]
@@ -23,7 +23,7 @@ pub struct Config {
     #[serde(default)]
     pub default_runner: Option<String>,
     /// Layout of the main monitor
-    pub layout: Component
+    pub layout: Component,
 }
 
 impl Config {
@@ -64,9 +64,8 @@ impl Default for Config {
                         placeholder: String::from("Password"),
                         classes: vec![String::from("input"), String::from("password")]
                     }),
-                    Component::Runner(FieldComponent {
-                        placeholder: String::from("Select runner"),
-                        classes: vec![String::from("input"), String::from("runner")]
+                    Component::Runner(ComponentWithClasses {
+                        classes: vec![String::from("runner")]
                     })
                 ],
                 ..Default::default()
@@ -95,7 +94,10 @@ pub struct Monitor {
 #[derive(Deserialize, Debug)]
 pub struct Runner {
     /// Name which should be displayed when the runner is selected
-    display_name: String,
-    /// Command to run when the login succeeds with this runner
-    run: String
+    pub display_name: String,
+    /// Commands to run when the login succeeds
+    pub run: Vec<String>,
+    /// Environment variables to set when the login succeeds
+    #[serde(default)]
+    pub env: Vec<String>
 }
