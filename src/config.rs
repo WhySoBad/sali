@@ -1,14 +1,14 @@
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 use serde::Deserialize;
 use log::error;
 
-use crate::components::{BoxComponent, Component, ComponentWithClasses, FieldComponent};
+use crate::components::{BoxComponent, Component, ComponentWithClasses, DateTimeComponent, FieldComponent};
 
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Config {
     /// Named configuration for each monitor
-    pub monitors: HashMap<String, Monitor>,
+    pub monitors: BTreeMap<String, Monitor>,
     /// Name of the monitor which should contain the login form
     pub main_monitor: String,
     /// The default username to prefill the username field if provided
@@ -17,8 +17,10 @@ pub struct Config {
     /// All paths from where stylesheets should be loaded
     #[serde(default)]
     pub styles: Vec<String>,
+    /// Css classes which are applied to different nodes and on specific events
+    pub classes: Classes,
     /// Named runner options
-    pub runners: HashMap<String, Runner>,
+    pub runners: BTreeMap<String, Runner>,
     /// Optional name of a runner which is preselected
     #[serde(default)]
     pub default_runner: Option<String>,
@@ -48,14 +50,20 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            monitors: HashMap::new(),
+            monitors: BTreeMap::new(),
             main_monitor: String::new(),
             username: None,
             styles: Vec::new(),
-            runners: HashMap::new(),
+            runners: BTreeMap::new(),
             default_runner: None,
+            classes: Classes::default(),
             layout: Component::Box(BoxComponent {
                 children: vec![
+                    Component::DateTime(DateTimeComponent {
+                        classes: vec![String::from("label"), String::from("datetime")],
+                        format: String::from("%H:%M.%S"),
+                        interval: 1000
+                    }),
                     Component::Username(FieldComponent {
                         placeholder: String::from("Username"),
                         classes: vec![String::from("input"), String::from("username")]
@@ -100,4 +108,24 @@ pub struct Runner {
     /// Environment variables to set when the login succeeds
     #[serde(default)]
     pub env: Vec<String>
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(default)]
+pub struct Classes {
+    pub background: Vec<String>,
+    pub window: Vec<String>,
+    pub field_error: String,
+    pub field_empty: String,
+}
+
+impl Default for Classes {
+    fn default() -> Self {
+        Self {
+            background: vec![String::from("background")],
+            window: vec![String::from("window")],
+            field_error: String::from("error"),
+            field_empty: String::from("empty"),
+        }
+    }
 }

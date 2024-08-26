@@ -6,7 +6,7 @@ use std::{fs, path::Path, sync::Arc};
 
 use clap::Parser;
 use cli::Cli;
-use config::Config;
+use config::{Classes, Config};
 use gtk::gdk::{*, prelude::*};
 use gtk::{*, prelude::*};
 use gtk4_layer_shell::*;
@@ -41,7 +41,7 @@ fn main() {
       let cloned_app = app.clone();
       app.connect_activate(move |_| {
           cloned_config.monitors.iter().for_each(|(name, mon)| {
-              build_background_window(&cloned_app, mon);
+              build_background_window(&cloned_app, mon, &cloned_config.classes);
               if *name == config.main_monitor {
                   build_form_window(&cloned_app, mon, cloned_config.clone());
               }
@@ -101,7 +101,7 @@ fn get_gdk_monitor(monitor: &config::Monitor) -> Option<gtk::gdk::Monitor> {
         .find(|m| m.connector().unwrap_or_default() == monitor.output)
 }
 
-fn build_background_window(app: &Application, monitor: &config::Monitor) {
+fn build_background_window(app: &Application, monitor: &config::Monitor, classes: &Classes) {
     let Some(background) = &monitor.background else {
         return;
     };
@@ -115,7 +115,7 @@ fn build_background_window(app: &Application, monitor: &config::Monitor) {
     let geometry = gdk_monitor.geometry();
     let window = ApplicationWindow::builder()
         .application(app)
-        .css_classes(vec![String::from("background"), String::from("window")])
+        .css_classes(classes.background.clone())
         .destroy_with_parent(true)
         .default_width(geometry.width())
         .default_height(geometry.height())
@@ -153,18 +153,28 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
         return;
     };
 
+    let geometry = gdk_monitor.geometry();
     let window = ApplicationWindow::builder()
         .application(app)
-        .css_classes(vec![String::from("window")])
+        .css_classes(config.classes.window.clone())
         .destroy_with_parent(true)
         .fullscreened(true)
         .focusable(true)
         .decorated(false)
+        .hexpand(true)
+        .vexpand(true)
+        .resizable(false)
+        .width_request(geometry.width())
+        .height_request(geometry.height())
         .build();
 
     window.init_layer_shell();
-    window.set_layer(Layer::Top);
+    window.set_anchor(Edge::Left, true);
+    window.set_anchor(Edge::Top, true);
+    window.set_exclusive_zone(-1);
+    window.set_layer(Layer::Overlay);
     window.set_monitor(&gdk_monitor);
+    window.set_keyboard_mode(KeyboardMode::OnDemand);
 
     let (mut username, mut password, mut runner) = (None, None, None);
 
@@ -189,9 +199,19 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
         std::process::exit(1)
     }
 
+    let add_empty_class = move |entry: &Entry, classes: &Classes| {
+        if entry.text().is_empty() {
+            entry.add_css_class(&classes.field_empty)
+        } else {
+            entry.remove_css_class(&classes.field_empty)
+        }
+    };
+
     let (cu, cr, cp, cc) = (username.clone(), runner.clone(), password.clone(), config.clone());
     let tmp = password.as_ref().borrow();
-    let entry = tmp.downcast_ref::<PasswordEntry>().expect("should be password entry");
+    let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
+    entry.connect_text_notify(move |entry| add_empty_class(entry, &cc.classes));
+    let cc = config.clone();
     entry.connect_activate(move |_| {
         handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
     });
@@ -200,6 +220,8 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     if let Some(usr) = username.clone() {
         let tmp = usr.as_ref().borrow();
         let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
+        entry.connect_text_notify(move |entry| add_empty_class(entry, &cc.classes));
+        let cc = config.clone();
         entry.connect_activate(move |_| {
             handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
         });
@@ -223,11 +245,10 @@ fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, r
     let runner_opt = if let Some(runner) = runner {
         let tmp = runner.as_ref().borrow();
         let entry = tmp.downcast_ref::<DropDown>().expect("should be dropdown");
-        if let Some(selected) = entry.selected_item().and_downcast::<StringObject>() {
+
+        entry.selected_item().and_downcast::<StringObject>().and_then(|selected| {
             config.runners.values().find(|r| r.display_name == selected.string())
-        } else {
-            None
-        }
+        })
     } else {
         let name = config.default_runner.clone().expect("should have default runner");
         config.runners.get(&name)
@@ -239,26 +260,38 @@ fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, r
     };
 
     let tmp = password.as_ref().borrow();
-    let password_entry = tmp.downcast_ref::<PasswordEntry>().expect("should be password entry");
-    let password_str = password_entry.text();
-
-    if let Some(usr) = username {
+    let password_entry = tmp.clone().downcast::<Entry>().expect("should be entry");
+    let username_entry = username.map(|usr| {
         let tmp = usr.as_ref().borrow();
-        let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
-        let username_str = entry.text();
-        if password_str.is_empty() || username_str.is_empty() {
-            password_entry.add_css_class("error");
-            entry.add_css_class("error");
-        }
-        match handle_login(username_str.to_string(), password_str.to_string(), runner) {
-            login::LoginResult::Failure(_) => todo!(),
-            login::LoginResult::Success => todo!(),
-        };
-    } else {
-        let username_str = config.username.clone().expect("should have default username");
-        match handle_login(username_str, password_str.to_string(), runner) {
-            login::LoginResult::Failure(_) => todo!(),
-            login::LoginResult::Success => todo!(),
-        };
+        tmp.clone().downcast::<Entry>().expect("should be entry")
+    });
+
+    let password_str = password_entry.text().to_string();
+    let username_str = match &username_entry {
+        Some(entry) => entry.text().to_string(),
+        None => config.username.clone().expect("should have default username")
+    };
+
+    match handle_login(username_str, password_str, runner) {
+        login::LoginResult::Failure(failure) => {
+            match failure {
+                login::LoginFailure::MissingFields => {
+                    if password_entry.text().is_empty() {
+                        password_entry.add_css_class(&config.classes.field_error)
+                    } else if let Some(entry) = &username_entry {
+                        entry.add_css_class(&config.classes.field_error)
+                    }
+                },
+                login::LoginFailure::AuthError |
+                login::LoginFailure::Error => {
+                    password_entry.add_css_class(&config.classes.field_error);
+                    if let Some(entry) = &username_entry { entry.add_css_class(&config.classes.field_error) };
+                },
+            }
+        },
+        login::LoginResult::Success => {
+            info!("login attempt succeeded");
+            std::process::exit(0);
+        },
     }
 }

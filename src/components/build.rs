@@ -1,5 +1,7 @@
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
+use chrono::Local;
+use glib::{timeout_add_local, ControlFlow};
 use gtk4 as gtk;
 use gtk::{*, prelude::*};
 use log::warn;
@@ -73,8 +75,14 @@ pub fn build_component_tree(
 
             Some(Rc::new(RefCell::new(built.upcast::<Widget>())))
         },
-        super::Component::DateTime(_) => todo!(),
-        super::Component::Label(_) => todo!(),
+        super::Component::DateTime(datetime) => {
+            let widget = build_datetime(datetime).upcast::<Widget>();
+            Some(Rc::new(RefCell::new(widget)))
+        },
+        super::Component::Label(label) => {
+            let widget = build_label(label).upcast::<Widget>();
+            Some(Rc::new(RefCell::new(widget)))
+        },
     }
 }
 
@@ -86,10 +94,11 @@ fn build_username_field(field: super::FieldComponent, default_username: Option<S
         .build()
 }
 
-fn build_password_field(field: super::FieldComponent) -> PasswordEntry {
-    PasswordEntry::builder()
+fn build_password_field(field: super::FieldComponent) -> Entry {
+    Entry::builder()
         .css_classes(field.classes)
         .placeholder_text(field.placeholder)
+        .visibility(false)
         .build()
 }
 
@@ -120,5 +129,28 @@ fn build_box(bx: super::BoxComponent) -> Box {
         .vexpand(bx.vexpand)
         .width_request(bx.width)
         .spacing(bx.spacing)
+        .build()
+}
+
+fn build_datetime(datetime: super::DateTimeComponent) -> Label {
+    let current = format!("{}", Local::now().format(datetime.format.as_str()));
+    let label = Label::builder()
+        .css_classes(datetime.classes)
+        .label(current)
+        .build();
+
+    let cloned_label = label.clone();
+    timeout_add_local(Duration::from_millis(datetime.interval), move || {
+        let formatted = format!("{}", Local::now().format(datetime.format.as_str()));
+        cloned_label.set_label(formatted.as_str());
+        ControlFlow::Continue
+    });
+    label
+}
+
+fn build_label(label: super::LabelComponent) -> Label {
+    Label::builder()
+        .css_classes(label.classes)
+        .label(label.label)
         .build()
 }

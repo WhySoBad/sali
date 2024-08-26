@@ -4,7 +4,7 @@ use serde::Deserialize;
 pub mod build;
 
 #[derive(Deserialize, Clone, Debug)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Component {
     /// Password form field component
     Password(FieldComponent),
@@ -21,6 +21,7 @@ pub enum Component {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(default)]
 pub struct ComponentWithClasses {
     /// Css classes which are applied to the component
     pub classes: Vec<String>
@@ -35,6 +36,7 @@ impl Default for ComponentWithClasses {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(default)]
 pub struct DateTimeComponent {
     /// Css classes which are applied to the datetime label
     pub classes: Vec<String>,
@@ -43,7 +45,7 @@ pub struct DateTimeComponent {
     /// Reference: https://docs.rs/chrono/latest/chrono/format/strftime/index.html
     pub format: String,
     /// Milliseconds after which the date time should be updated
-    pub interval: u32,
+    pub interval: u64,
 }
 
 impl Default for DateTimeComponent {
@@ -132,6 +134,7 @@ impl Default for BoxComponent {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum Align {
     Fill,
     Start,
@@ -153,6 +156,7 @@ impl From<Align> for gtk::Align {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum Orientation {
     Horizontal,
     Vertical

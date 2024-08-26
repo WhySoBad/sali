@@ -33,14 +33,14 @@ pub fn handle_login(
 
     let Ok(path) = env::var("GREETD_SOCK") else {
         error!("unable to find GREETD_SOCK environment variable");
-        std::process::exit(1);
+        return LoginResult::Failure(LoginFailure::Error)
     };
     // See: https://github.com/kennylevinsen/greetd/blob/master/agreety/src/main.rs
     let mut stream = match UnixStream::connect(path) {
         Ok(stream) => stream,
         Err(err) => {
             error!("unable to open stream: {err}");
-            std::process::exit(1);
+            return LoginResult::Failure(LoginFailure::Error)
         },
     };
     let mut starting = false;
@@ -49,14 +49,14 @@ pub fn handle_login(
     loop {
         if let Err(err) = next_request.write_to(&mut stream) {
             error!("unable to write to greetd socket: {err}");
-            std::process::exit(1);
+            return LoginResult::Failure(LoginFailure::Error)
         };
 
         let response = match Response::read_from(&mut stream) {
             Ok(response) => response,
             Err(err) => {
                 error!("unable to read response from greetd socket: {err}");
-                std::process::exit(1);
+                return LoginResult::Failure(LoginFailure::Error)
             },
         };
 
@@ -93,7 +93,7 @@ pub fn handle_login(
             Response::Error { error_type, description } => {
                 if let Err(err) = Request::CancelSession.write_to(&mut stream) {
                     error!("unable to close greetd session: {err}");
-                    std::process::exit(1);
+                    return LoginResult::Failure(LoginFailure::Error)
                 }
                 return match error_type {
                     ErrorType::AuthError => LoginResult::Failure(LoginFailure::AuthError),
