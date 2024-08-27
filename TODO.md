@@ -2,8 +2,6 @@
 - Button component which runs a command on click <br />
   This would allow to create boot options to boot e.g. into bios or dual boot from greeter
 
-- Resolve relative paths from config file
-
 ## Nice to have
 - Animations for windows <br />
   Either "hardcode" some animation keyframes or add option to add delay

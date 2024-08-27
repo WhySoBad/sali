@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, fs, path::{Path, PathBuf}};
 use serde::Deserialize;
-use log::error;
+use log::{error, warn};
 
 use crate::components::{
     BoxComponent,
@@ -13,6 +13,8 @@ use crate::components::{
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
+    #[serde(skip_deserializing)]
+    path: PathBuf,
     /// Named configuration for each monitor
     pub monitors: BTreeMap<String, Monitor>,
     /// Name of the monitor which should contain the login form
@@ -42,7 +44,9 @@ impl Config {
         if path.exists() {
             let str = fs::read_to_string(path).unwrap_or_default();
             match serde_yaml::from_str(str.as_str()) {
-                Ok(config) => config,
+                Ok(config) => {
+                    Self { path: path.to_path_buf(), ..config }
+                },
                 Err(err) => {
                     error!("invalid config file: {err}");
                     std::process::exit(1)
@@ -53,11 +57,60 @@ impl Config {
             std::process::exit(1)
         }
     }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    pub fn directory(&self) -> &Path {
+        &self.path.parent().unwrap_or(self.path().as_path())
+    }
+
+    /// Expand `$HOME` and `~` at beginning of a path to
+    /// current user home directory if resolvable
+    fn expand_path(path_str: &String) -> Option<PathBuf> {
+        if !path_str.starts_with("~") && !path_str.starts_with("$HOME") {
+            Some(Path::new(path_str).to_path_buf())
+        } else if path_str == "~" || path_str == "$HOME" {
+            dirs::home_dir()
+        } else {
+            dirs::home_dir().map(|home| {
+                if home == Path::new("/") {
+                    let without = path_str.replace("$HOME", "").replace("~", "");
+                    Path::new(&without).to_path_buf()
+                } else {
+                    let home_str = home.to_str().unwrap_or_default();
+                    let without = path_str.replace("$HOME", home_str).replace("~", home_str);
+                    Path::new(&without).to_path_buf()
+                }
+            })
+        }
+    }
+
+    /// Resolve relative paths to position of config file
+    /// and expand `$HOME` and `~` to user home directory
+    pub fn resolve_path(&self, path_str: &String) -> PathBuf {
+        let path = match Self::expand_path(path_str) {
+            Some(path) => path,
+            None => {
+                warn!("unable to resolve user home directory");
+                Path::new(path_str).to_path_buf()
+            },
+        };
+
+        if path.is_relative() {
+            let full = self.directory().join(path);
+            full.canonicalize().unwrap_or(full)
+        } else {
+            path
+        }
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            path: PathBuf::new(),
             monitors: BTreeMap::new(),
             main_monitor: String::new(),
             username: None,

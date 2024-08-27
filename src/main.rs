@@ -2,7 +2,7 @@ use components::build::{build_component_tree, Wrapped};
 use gtk4 as gtk;
 use login::handle_login;
 use std::process;
-use std::{fs, path::Path, sync::Arc};
+use std::{fs, sync::Arc};
 
 use clap::Parser;
 use cli::Cli;
@@ -41,7 +41,7 @@ fn main() {
       let cloned_app = app.clone();
       app.connect_activate(move |_| {
           cloned_config.monitors.iter().for_each(|(name, mon)| {
-              build_background_window(&cloned_app, mon, &cloned_config.classes);
+              build_background_window(&cloned_app, mon, cloned_config.clone());
               if *name == config.main_monitor {
                   build_form_window(&cloned_app, mon, cloned_config.clone());
               }
@@ -54,12 +54,12 @@ fn main() {
 fn load_stylesheets(config: &Arc<Config>) {
     let provider = CssProvider::new();
     let format = output::Format {
-        style: output::Style::Compressed,
+        style: output::Style::Expanded,
         ..Default::default()
     };
 
     config.styles.iter().for_each(|path_str| {
-        let path = Path::new(path_str);
+        let path = &config.resolve_path(path_str);
         if path.exists() {
             match fs::read(path) {
                 Ok(content) => {
@@ -101,7 +101,7 @@ fn get_gdk_monitor(monitor: &config::Monitor) -> Option<gtk::gdk::Monitor> {
         .find(|m| m.connector().unwrap_or_default() == monitor.output)
 }
 
-fn build_background_window(app: &Application, monitor: &config::Monitor, classes: &Classes) {
+fn build_background_window(app: &Application, monitor: &config::Monitor, config: Arc<Config>) {
     let Some(background) = &monitor.background else {
         return;
     };
@@ -115,7 +115,7 @@ fn build_background_window(app: &Application, monitor: &config::Monitor, classes
     let geometry = gdk_monitor.geometry();
     let window = ApplicationWindow::builder()
         .application(app)
-        .css_classes(classes.background.clone())
+        .css_classes(config.classes.background.clone())
         .destroy_with_parent(true)
         .default_width(geometry.width())
         .default_height(geometry.height())
@@ -132,7 +132,7 @@ fn build_background_window(app: &Application, monitor: &config::Monitor, classes
     let class_name = format!("{}-{}", APP_ID.replace(".", "-"), monitor.output);
     let class_content = match background {
         config::MonitorBackground::Rgb(r, g, b) => format!("background-color: rgb({r},{g},{b})"),
-        config::MonitorBackground::Image(path) => format!("background: url(\"file://{path}\")"),
+        config::MonitorBackground::Image(path) => format!("background: url(\"file://{}\")", config.resolve_path(path).to_string_lossy()),
     };
     let css_str = format!(r".{class_name} {{ {class_content}; background-size: cover; background-position: center; }}");
     provider.load_from_data(&css_str);
