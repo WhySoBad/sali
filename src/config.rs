@@ -2,10 +2,16 @@ use std::{collections::BTreeMap, fs, path::Path};
 use serde::Deserialize;
 use log::error;
 
-use crate::components::{BoxComponent, Component, ComponentWithClasses, DateTimeComponent, FieldComponent};
+use crate::components::{
+    BoxComponent,
+    Component,
+    DateTimeComponent,
+    PasswordComponent,
+    RunnerComponent,
+    UsernameComponent
+};
 
 #[derive(Deserialize, Debug)]
-#[serde(default)]
 pub struct Config {
     /// Named configuration for each monitor
     pub monitors: BTreeMap<String, Monitor>,
@@ -18,6 +24,7 @@ pub struct Config {
     #[serde(default)]
     pub styles: Vec<String>,
     /// Css classes which are applied to different nodes and on specific events
+    #[serde(default)]
     pub classes: Classes,
     /// Named runner options
     pub runners: BTreeMap<String, Runner>,
@@ -25,6 +32,7 @@ pub struct Config {
     #[serde(default)]
     pub default_runner: Option<String>,
     /// Layout of the main monitor
+    #[serde(default = "default_layout")]
     pub layout: Component,
 }
 
@@ -57,29 +65,21 @@ impl Default for Config {
             runners: BTreeMap::new(),
             default_runner: None,
             classes: Classes::default(),
-            layout: Component::Box(BoxComponent {
-                children: vec![
-                    Component::DateTime(DateTimeComponent {
-                        classes: vec![String::from("label"), String::from("datetime")],
-                        format: String::from("%H:%M.%S"),
-                        interval: 1000
-                    }),
-                    Component::Username(FieldComponent {
-                        placeholder: String::from("Username"),
-                        classes: vec![String::from("input"), String::from("username")]
-                    }),
-                    Component::Password(FieldComponent {
-                        placeholder: String::from("Password"),
-                        classes: vec![String::from("input"), String::from("password")]
-                    }),
-                    Component::Runner(ComponentWithClasses {
-                        classes: vec![String::from("runner")]
-                    })
-                ],
-                ..Default::default()
-            })
+            layout: default_layout()
         }
     }
+}
+
+fn default_layout() -> Component {
+    Component::Box(BoxComponent {
+        children: vec![
+            Component::DateTime(DateTimeComponent::default()),
+            Component::Username(UsernameComponent::default()),
+            Component::Password(PasswordComponent::default()),
+            Component::Runner(RunnerComponent::default())
+        ],
+        ..Default::default()
+    })
 }
 
 #[derive(Deserialize, Debug)]
@@ -113,9 +113,13 @@ pub struct Runner {
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Classes {
+    /// Css classes which are applied to the background windows
     pub background: Vec<String>,
+    /// Css classes which are applied to the main window holding the layout tree
     pub window: Vec<String>,
+    /// Css class which is applied to the username/password fields when a login error occurs
     pub field_error: String,
+    /// Css class which is applied to the username/password fields when they are empty
     pub field_empty: String,
 }
 

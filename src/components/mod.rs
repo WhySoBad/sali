@@ -7,11 +7,11 @@ pub mod build;
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Component {
     /// Password form field component
-    Password(FieldComponent),
+    Password(PasswordComponent),
     /// Username form field component
-    Username(FieldComponent),
+    Username(UsernameComponent),
     /// Runner select form field component
-    Runner(ComponentWithClasses),
+    Runner(RunnerComponent),
     /// Box component
     Box(BoxComponent),
     /// Label component displaying the current date time
@@ -22,15 +22,15 @@ pub enum Component {
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(default)]
-pub struct ComponentWithClasses {
-    /// Css classes which are applied to the component
+pub struct RunnerComponent {
+    /// Css classes which are applied to the runner dropdown
     pub classes: Vec<String>
 }
 
-impl Default for ComponentWithClasses {
+impl Default for RunnerComponent {
     fn default() -> Self {
         Self {
-            classes: Vec::new()
+            classes: vec![String::from("runner"), String::from("dropdown")]
         }
     }
 }
@@ -78,18 +78,36 @@ impl Default for LabelComponent {
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(default)]
-pub struct FieldComponent {
+pub struct UsernameComponent {
     /// Css classes which are applied to the form field
     pub classes: Vec<String>,
     /// Placeholder text for the form field
     pub placeholder: String,
 }
 
-impl Default for FieldComponent {
+impl Default for UsernameComponent {
     fn default() -> Self {
         Self {
-            classes: vec![String::from("field")],
-            placeholder: String::new()
+            classes: vec![String::from("input"), String::from("username")],
+            placeholder: String::from("Username")
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(default)]
+pub struct PasswordComponent {
+    /// Css classes which are applied to the form field
+    pub classes: Vec<String>,
+    /// Placeholder text for the form field
+    pub placeholder: String,
+}
+
+impl Default for PasswordComponent {
+    fn default() -> Self {
+        Self {
+            classes: vec![String::from("input"), String::from("password")],
+            placeholder: String::from("Password")
         }
     }
 }

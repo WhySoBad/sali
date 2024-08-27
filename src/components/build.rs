@@ -86,7 +86,7 @@ pub fn build_component_tree(
     }
 }
 
-fn build_username_field(field: super::FieldComponent, default_username: Option<String>) -> Entry {
+fn build_username_field(field: super::UsernameComponent, default_username: Option<String>) -> Entry {
     Entry::builder()
         .css_classes(field.classes)
         .placeholder_text(field.placeholder)
@@ -94,7 +94,7 @@ fn build_username_field(field: super::FieldComponent, default_username: Option<S
         .build()
 }
 
-fn build_password_field(field: super::FieldComponent) -> Entry {
+fn build_password_field(field: super::PasswordComponent) -> Entry {
     Entry::builder()
         .css_classes(field.classes)
         .placeholder_text(field.placeholder)
@@ -102,7 +102,7 @@ fn build_password_field(field: super::FieldComponent) -> Entry {
         .build()
 }
 
-fn build_runner_field(field: super::ComponentWithClasses, runners: Vec<&str>, default_runner: Option<String>) -> DropDown {
+fn build_runner_field(field: super::RunnerComponent, runners: Vec<&str>, default_runner: Option<String>) -> DropDown {
     let model = StringList::new(runners.as_slice());
     let mut selected = 0;
     if let Some(default_runner) = &default_runner {
