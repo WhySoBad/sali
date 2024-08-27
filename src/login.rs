@@ -86,7 +86,7 @@ pub fn handle_login(
                     starting = true;
                     next_request = Request::StartSession {
                         env: runner.env.clone(),
-                        cmd: runner.run.clone(),
+                        cmd: vec![runner.run.clone()],
                     }
                 }
             }

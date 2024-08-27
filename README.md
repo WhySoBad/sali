@@ -104,11 +104,12 @@ layout tree or which are applied to components based on some conditions
 
 A run configuration which is executed when a login attempt succeeds
 
-| Field          | Description                                                                                | Default value |
-| -------------- | ------------------------------------------------------------------------------------------ | ------------- |
-| `display_name` | The name displayed in the [runner dropdown](#runner-dropdown) when this runner is selected | -             |
-| `run`          | A list of commands to run when a login attempt with this runner succeeds                   | -             |
-| `env`          | A list of environment variables to set for the commands                                    | `[]`          |
+| Field          | Description                                                                                                                              | Default value |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `display_name` | The name displayed in the [runner dropdown](#runner-dropdown) when this runner is selected                                               | -             |
+| `run`          | The command to run when a login attempt with this runner succeeds                                                                        | -             |
+| `env`          | A list of environment variables to set for the commands                                                                                  | `[]`          |
+| `exit_early`   | Boolean whether the application should exit instantanious after login success <br /> When set to `false` it waits to be killed by greetd | `false`       |
 
 ## Layout
 

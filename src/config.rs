@@ -156,11 +156,14 @@ pub struct Monitor {
 pub struct Runner {
     /// Name which should be displayed when the runner is selected
     pub display_name: String,
-    /// Commands to run when the login succeeds
-    pub run: Vec<String>,
+    /// Command to run when the login succeeds
+    pub run: String,
     /// Environment variables to set when the login succeeds
     #[serde(default)]
-    pub env: Vec<String>
+    pub env: Vec<String>,
+    /// Exit the program instantanious after login success
+    #[serde(default)]
+    pub exit_early: bool
 }
 
 #[derive(Deserialize, Debug)]

@@ -175,7 +175,7 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     window.set_exclusive_zone(-1);
     window.set_layer(Layer::Overlay);
     window.set_monitor(&gdk_monitor);
-    window.set_keyboard_mode(KeyboardMode::OnDemand);
+    window.set_keyboard_mode(KeyboardMode::Exclusive);
 
     let (mut username, mut password, mut runner) = (None, None, None);
 
@@ -292,7 +292,9 @@ fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, r
         },
         login::LoginResult::Success => {
             info!("login attempt succeeded");
-            std::process::exit(0);
+            if runner.exit_early {
+                std::process::exit(0);
+            }
         },
     }
 }
