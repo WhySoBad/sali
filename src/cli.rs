@@ -8,6 +8,7 @@ const CONFIG_PATH: &str = ".config/sali/config.yaml";
 #[command(version, about, long_about = None)]
 pub struct Cli {
     #[arg(long, short, default_value_t = get_default_config_path())]
+    /// Alternative path to a config file
     pub config: String
 }
 

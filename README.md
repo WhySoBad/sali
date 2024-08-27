@@ -16,7 +16,6 @@ You'll need the following dependencies installed on your system:
 
 - `gtk4`
 - `gtk4-layer-shell`
-- `gio`
 
 > Depending on your distribution the names may differ, the above names are for
 > the Arch and AUR packages
