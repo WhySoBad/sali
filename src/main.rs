@@ -48,7 +48,8 @@ fn main() {
           })
       });
 
-      app.run();
+      let empty_args: Vec<String> = vec![];
+      app.run_with_args(&empty_args);
 }
 
 fn load_stylesheets(config: &Arc<Config>) {
