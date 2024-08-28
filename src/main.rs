@@ -1,6 +1,7 @@
 use components::build::{build_component_tree, Wrapped};
 use gtk4 as gtk;
 use login::handle_login;
+use std::os::unix::process::CommandExt;
 use std::process;
 use std::{fs, sync::Arc};
 
@@ -175,7 +176,7 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     window.set_exclusive_zone(-1);
     window.set_layer(Layer::Overlay);
     window.set_monitor(&gdk_monitor);
-    window.set_keyboard_mode(KeyboardMode::Exclusive);
+    window.set_keyboard_mode(KeyboardMode::OnDemand);
 
     let (mut username, mut password, mut runner) = (None, None, None);
 
@@ -292,7 +293,12 @@ fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, r
         },
         login::LoginResult::Success => {
             info!("login attempt succeeded");
-            if runner.exit_early {
+            if let Some(cmd) = &runner.exit_cmd {
+                let mut command = std::process::Command::new(cmd);
+                let err = command.exec();
+                println!("unable to exit with custom command: {err}");
+                std::process::exit(0);
+            } else {
                 std::process::exit(0);
             }
         },

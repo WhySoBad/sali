@@ -58,7 +58,8 @@ styles: [ "~/.config/sali/styles.scss" ]
 runners:
   hyprland:
     display_name: Hyprland
-    run: [ "exec Hyprland &> /tmp/hyprland-session.log" ]
+    run: Hyprland &> /tmp/hyprland-session.log
+    exit_cmd: hyprctl dispatch exit
 
 default_runner: hyprland
 
@@ -68,12 +69,12 @@ layout:
   valign: fill
   children:
     - type: box
-        classes: [ "container" ]
-        children:
+      classes: [ "container" ]
+      children:
         - type: datetime
     - type: box
-        classes: [ "container" ]
-        children:
+      classes: [ "container" ]
+      children:
         - type: username
         - type: password
 ```
@@ -109,7 +110,7 @@ A run configuration which is executed when a login attempt succeeds
 | `display_name` | The name displayed in the [runner dropdown](#runner-dropdown) when this runner is selected                                               | -             |
 | `run`          | The command to run when a login attempt with this runner succeeds                                                                        | -             |
 | `env`          | A list of environment variables to set for the commands                                                                                  | `[]`          |
-| `exit_early`   | Boolean whether the application should exit instantanious after login success <br /> When set to `false` it waits to be killed by greetd | `false`       |
+| `exit_cmd`     | Command to run aftera successfuly login attempt to exit the greeter environment <br /> By default it simply exists the sali application  | _none_        |
 
 ## Layout
 

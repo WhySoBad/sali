@@ -161,9 +161,10 @@ pub struct Runner {
     /// Environment variables to set when the login succeeds
     #[serde(default)]
     pub env: Vec<String>,
-    /// Exit the program instantanious after login success
+    /// Command to run after a successful login attempt to exit
+    /// the greeter environment
     #[serde(default)]
-    pub exit_early: bool
+    pub exit_cmd: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
