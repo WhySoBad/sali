@@ -176,7 +176,7 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     window.set_exclusive_zone(-1);
     window.set_layer(Layer::Overlay);
     window.set_monitor(&gdk_monitor);
-    window.set_keyboard_mode(KeyboardMode::OnDemand);
+    window.set_keyboard_mode(KeyboardMode::Exclusive);
 
     let (mut username, mut password, mut runner) = (None, None, None);
 
@@ -222,11 +222,16 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     if let Some(usr) = username.clone() {
         let tmp = usr.as_ref().borrow();
         let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
+        if config.username.is_none() {
+            GtkWindowExt::set_focus(&window, Some(entry));
+        }
         entry.connect_text_notify(move |entry| add_empty_class(entry, &cc.classes));
         let cc = config.clone();
         entry.connect_activate(move |_| {
             handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
         });
+    } else {
+        GtkWindowExt::set_focus(&window, Some(entry));
     }
 
     match tree {
@@ -294,10 +299,17 @@ fn handle_submit(username: Option<Wrapped<Widget>>, password: Wrapped<Widget>, r
         login::LoginResult::Success => {
             info!("login attempt succeeded");
             if let Some(cmd) = &runner.exit_cmd {
-                let mut command = std::process::Command::new(cmd);
-                let err = command.exec();
-                println!("unable to exit with custom command: {err}");
-                std::process::exit(0);
+                if let Some(argv) = shlex::split(&cmd) {
+                    let mut command = std::process::Command::new(&argv[0]);
+                    command.args(&argv[1..]);
+                    info!("using custom exit command: {command:?}");
+                    let err = command.exec();
+                    error!("unable to exit with custom exit command: {err}");
+                    std::process::exit(0);
+                } else {
+                    error!("received invalid custom exit command");
+                    std::process::exit(0);
+                }
             } else {
                 std::process::exit(0);
             }

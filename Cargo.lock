@@ -1033,6 +1033,7 @@ dependencies = [
  "rsass",
  "serde",
  "serde_yaml",
+ "shlex",
 ]
 
 [[package]]
