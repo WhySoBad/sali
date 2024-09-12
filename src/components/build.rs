@@ -83,6 +83,10 @@ pub fn build_component_tree(
             let widget = build_label(label).upcast::<Widget>();
             Some(Rc::new(RefCell::new(widget)))
         },
+        super::Component::Button(button) => {
+            let widget = build_button(button).upcast::<Widget>();
+            Some(Rc::new(RefCell::new(widget)))
+        }
     }
 }
 
@@ -153,4 +157,33 @@ fn build_label(label: super::LabelComponent) -> Label {
         .css_classes(label.classes)
         .label(label.label)
         .build()
+}
+
+fn build_button(button: super::ButtonComponent) -> Button {
+    let btn = Button::builder()
+        .css_classes(button.classes)
+        .label(button.label)
+        .build();
+
+    let cloned_command = button.command.clone();
+    btn.connect_clicked(move |_| {
+        log::info!("clicked button");
+        if let Some(argv) = shlex::split(&cloned_command) {
+            let mut command = std::process::Command::new(&argv[0]);
+            command.args(&argv[1..]);
+            match command.spawn() {
+                Ok(mut handle) => {
+                    match handle.wait() {
+                        Ok(res) => log::info!("button command succeeded with exit status {res}"),
+                        Err(err) => log::warn!("button command failed: {err}"),
+                    }
+                },
+                Err(err) => log::error!("unable to spawn child process: {err}"),
+            }
+        } else {
+            log::error!("received invalid button command: {}", cloned_command);
+        }
+    });
+
+    btn
 }

@@ -17,7 +17,9 @@ pub enum Component {
     /// Label component displaying the current date time
     DateTime(DateTimeComponent),
     /// Label component displaying any text
-    Label(LabelComponent)
+    Label(LabelComponent),
+    /// Button component to run a command on click
+    Button(ButtonComponent)
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -185,6 +187,27 @@ impl From<Orientation> for gtk::Orientation {
         match value {
             Orientation::Horizontal => gtk::Orientation::Horizontal,
             Orientation::Vertical => gtk::Orientation::Vertical,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct ButtonComponent {
+    /// Label displayed in the button
+    label: String,
+    #[serde(default)]
+    /// Css classes which are applied to the button
+    classes: Vec<String>,
+    /// Command to run when the button is clicked
+    command: String
+}
+
+impl Default for ButtonComponent {
+    fn default() -> Self {
+        Self {
+            command: String::new(),
+            classes: vec![String::from("button")],
+            label: String::new()
         }
     }
 }

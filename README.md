@@ -233,3 +233,15 @@ used to create a [Label](https://docs.gtk.org/gtk4/class.Label.html) widget
 | --------- | ------------------------------------------ | ------------- |
 | `classes` | Css classes which are applied to the label | `["label"]`   |
 | `label`   | Text of the label                          | -             |
+
+### Button
+
+The button component can be used to run some command on click. It can be added to
+the layout tree using `type: button` and the attributes below. Interally, it's
+used to create a [Button](https://docs.gtk.org/gtk4/class.Button.html) widget
+
+| Attribute | Description                                 | Default value |
+| --------- | ------------------------------------------- | ------------- |
+| `classes` | Css classes which are applied to the button | `["button"]`  |
+| `label`   | Text of the button                          | -             |
+| `command` | Command to run when the button is clicked   | -             |
