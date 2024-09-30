@@ -222,16 +222,11 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
     if let Some(usr) = username.clone() {
         let tmp = usr.as_ref().borrow();
         let entry = tmp.downcast_ref::<Entry>().expect("should be entry");
-        if config.username.is_none() {
-            GtkWindowExt::set_focus(&window, Some(entry));
-        }
         entry.connect_text_notify(move |entry| add_empty_class(entry, &cc.classes));
         let cc = config.clone();
         entry.connect_activate(move |_| {
             handle_submit(cu.clone(), cp.clone(), cr.clone(), cc.clone());
         });
-    } else {
-        GtkWindowExt::set_focus(&window, Some(entry));
     }
 
     match tree {
@@ -239,6 +234,9 @@ fn build_form_window(app: &Application, monitor: &config::Monitor, config: Arc<C
             let widget = child.as_ref().borrow();
             window.set_child(Some(widget.as_ref() as &Widget));
             window.present();
+            if config.username.is_some() {
+                entry.grab_focus();
+            }
             info!("opened login form");
         },
         None => {
