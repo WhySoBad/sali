@@ -167,9 +167,9 @@ fn build_button(button: super::ButtonComponent) -> Button {
 
     let cloned_command = button.command.clone();
     btn.connect_clicked(move |_| {
-        log::info!("clicked button");
         if let Some(argv) = shlex::split(&cloned_command) {
             let mut command = std::process::Command::new(&argv[0]);
+            log::info!("running command: {argv:?}");
             command.args(&argv[1..]);
             match command.spawn() {
                 Ok(mut handle) => {

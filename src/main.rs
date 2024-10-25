@@ -27,6 +27,10 @@ const APP_ID: &str = "ch.wysbd.sali";
 fn main() {
        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
        let cli = Cli::parse();
+       if cli.inspect {
+           info!("started with gtk inspector");
+           std::env::set_var("GTK_DEBUG", "interactive")
+       }
        let config = Arc::new(Config::new(&cli.config));
 
       let app = Application::builder()
